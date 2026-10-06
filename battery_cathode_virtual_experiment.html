@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>배터리 양극재 가상실험</title>
+<style>
+  body{font-family:Arial,"Noto Sans KR",sans-serif;margin:0;background:#f5f7fb;color:#172033}
+  .wrap{max-width:1000px;margin:0 auto;padding:28px}
+  h1{margin-bottom:6px}.sub{color:#5f6b7a;margin-top:0}
+  .panel{background:white;border:1px solid #dce2ea;border-radius:16px;padding:20px;margin:18px 0}
+  .controls{display:grid;grid-template-columns:1fr 220px;gap:22px;align-items:center}
+  input[type=range]{width:100%}
+  .value{font-size:28px;font-weight:700;text-align:center}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .card{background:#f7f9fc;border-radius:12px;padding:16px;text-align:center}
+  .num{font-size:24px;font-weight:700;margin-top:5px}
+  canvas{width:100%;height:360px;border:1px solid #e1e6ee;border-radius:12px;background:#fff}
+  .note{font-size:13px;color:#667085;line-height:1.6}
+  @media(max-width:700px){.controls,.cards{grid-template-columns:1fr}.value{text-align:left}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>배터리 양극재 가상실험</h1>
+  <p class="sub">하이니켈 양극재의 니켈 함량 변화가 에너지 밀도와 안정성에 미치는 영향을 단순화한 모형</p>
+
+  <div class="panel">
+    <div class="controls">
+      <div>
+        <label for="ni"><b>니켈 함량</b> (가상 독립변인)</label>
+        <input id="ni" type="range" min="0" max="90" value="30" step="1">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:#697386">
+          <span>0%</span><span>90%</span>
+        </div>
+      </div>
+      <div class="value"><span id="niVal">30</span>%</div>
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="card">예상 에너지 밀도<div class="num"><span id="energy">520</span> Wh/kg</div></div>
+    <div class="card">상대 안정성 지수<div class="num"><span id="stability">91</span> / 100</div></div>
+    <div class="card">가상 용량<div class="num"><span id="capacity">173</span> mAh/g</div></div>
+  </div>
+
+  <div class="panel">
+    <h2>가상실험 결과</h2>
+    <canvas id="chart" width="900" height="360"></canvas>
+    <p class="note">※ 위 수치는 실제 측정값이 아니라, '니켈 함량 증가 → 에너지 밀도 증가 / 안정성 감소'라는 탐구 가설을 시각화하기 위한 가상 데이터이다. 실제 배터리 성능은 양극재 조성, 결정구조, 전압, 입자 특성, 전해질, 제조 조건 등 여러 요인의 영향을 받는다.</p>
+  </div>
+
+  <div class="panel">
+    <h2>탐구 해석 예시</h2>
+    <p id="interpret"></p>
+  </div>
+</div>
+
+<script>
+const ni=document.getElementById('ni');
+const niVal=document.getElementById('niVal');
+const energy=document.getElementById('energy');
+const stability=document.getElementById('stability');
+const capacity=document.getElementById('capacity');
+const interpret=document.getElementById('interpret');
+const canvas=document.getElementById('chart');
+const ctx=canvas.getContext('2d');
+
+function model(x){
+  const e=470 + 2.55*x + 0.004*x*x;
+  const s=96 - 0.34*x - 0.0012*x*x;
+  const c=145 + 0.48*x;
+  return {e,s,c};
+}
+
+function draw(selected){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const W=canvas.width,H=canvas.height;
+  const L=70,R=25,T=25,B=55;
+  const pw=W-L-R, ph=H-T-B;
+
+  // grid
+  ctx.strokeStyle='#e6eaf0'; ctx.lineWidth=1;
+  for(let i=0;i<=5;i++){
+    const y=T+ph*i/5;
+    ctx.beginPath();ctx.moveTo(L,y);ctx.lineTo(W-R,y);ctx.stroke();
+  }
+  for(let i=0;i<=9;i++){
+    const x=L+pw*i/9;
+    ctx.beginPath();ctx.moveTo(x,T);ctx.lineTo(x,H-B);ctx.stroke();
+  }
+
+  // energy line
+  ctx.strokeStyle='#2457d6';ctx.lineWidth=3;ctx.beginPath();
+  for(let x=0;x<=90;x++){
+    const p=model(x);
+    const px=L+pw*x/90;
+    const py=T+ph*(850-p.e)/(850-450);
+    if(x===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);
+  }
+  ctx.stroke();
+
+  // stability line
+  ctx.strokeStyle='#b34a4a';ctx.lineWidth=3;ctx.beginPath();
+  for(let x=0;x<=90;x++){
+    const p=model(x);
+    const px=L+pw*x/90;
+    const py=T+ph*(100-p.s)/(100-55);
+    if(x===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);
+  }
+  ctx.stroke();
+
+  // selected marker
+  const p=model(selected);
+  const px=L+pw*selected/90;
+  const ey=T+ph*(850-p.e)/(850-450);
+  const sy=T+ph*(100-p.s)/(100-55);
+  ctx.fillStyle='#172033';
+  ctx.beginPath();ctx.arc(px,ey,6,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(px,sy,6,0,Math.PI*2);ctx.fill();
+
+  ctx.fillStyle='#172033';ctx.font='14px Arial';
+  ctx.fillText('니켈 함량 (%)',W/2-45,H-15);
+  ctx.save();ctx.translate(18,H/2+45);ctx.rotate(-Math.PI/2);ctx.fillText('에너지 밀도 / 안정성 지수',0,0);ctx.restore();
+
+  ctx.fillStyle='#2457d6';ctx.fillRect(W-240,25,14,4);ctx.fillStyle='#172033';ctx.fillText('에너지 밀도',W-220,30);
+  ctx.fillStyle='#b34a4a';ctx.fillRect(W-240,48,14,4);ctx.fillStyle='#172033';ctx.fillText('상대 안정성 지수',W-220,53);
+}
+
+function update(){
+  const x=Number(ni.value), p=model(x);
+  niVal.textContent=x;
+  energy.textContent=Math.round(p.e);
+  stability.textContent=Math.round(p.s);
+  capacity.textContent=Math.round(p.c);
+  interpret.textContent=`니켈 함량을 ${x}%로 설정했을 때, 가상모형에서는 에너지 밀도가 약 ${Math.round(p.e)} Wh/kg로 나타나고 상대 안정성 지수는 ${Math.round(p.s)}점으로 나타난다. 이 결과는 하나의 소재 특성을 높이면 다른 성능 요소와의 균형이 중요해질 수 있다는 점을 보여준다. 따라서 실제 연구에서는 '가장 높은 에너지 밀도'만 찾기보다 에너지 밀도, 수명, 안정성 등의 여러 변인을 함께 분석해야 한다.`;
+  draw(x);
+}
+ni.addEventListener('input',update); update();
+</script>
+</body>
+</html>
